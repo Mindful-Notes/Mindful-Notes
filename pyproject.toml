@@ -1,0 +1,41 @@
+[project]
+name = "mini-proj"
+version = "0.1.0"
+description = "FastAPI + PostgreSQL + Tortoise ORM 프로젝트"
+readme = "README.md"
+authors = [{name = "HHJina", email = "jina199234@gmail.com"}]
+requires-python = ">=3.10"
+
+# 메인 패키지 (실제 서비스 구동에 필요)
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "tortoise-orm[asyncpg]",  # tortoise-orm과 postgresql 드라이버 포함
+    "aerich",                 # DB 마이그레이션 도구
+    "pydantic[email]",        # 데이터 검증 및 이메일 형식 지원
+    "passlib[bcrypt]",        # 비밀번호 해싱
+    "python-multipart",       # Form 데이터 처리용
+]
+
+# 개발용 패키지 (코드 퀄리티 및 린팅)
+[tool.uv]
+dev-dependencies = [
+    "ruff",   # Linting + Formatting (Black 대신 사용)
+    "mypy",   # 타입 체크
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "B"] # 기본 에러, Isort(정렬) 등 포함
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+ignore_missing_imports = true
+
+[tool.aerich]
+tortoise_config = "app.core.config.TORTOISE_ORM"
+location = "./migrations"
