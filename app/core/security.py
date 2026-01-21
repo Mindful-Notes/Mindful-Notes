@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from core.config import settings        # 환경변수 설정값 secret key 등
 from core.database import get_db
 from starlette import status
-from auth.models import User
+import models
 
 
 
@@ -37,7 +37,10 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         detail="인증 자격 증명이 유효하지 않습니다.",
         headers={"WWW-Authenticate": "Bearer"},
     )
-
+    # 블랙리스트 확인 (보안 강화)
+    blacklisted = db.query(TokenBlacklist).filter(TokenBlacklist.token == token).first()
+    if blacklisted:
+        raise credentials_exception
     try:
         # 서명확인, 페이로드 추출 / (토큰 해독)
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
