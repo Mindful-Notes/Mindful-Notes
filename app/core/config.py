@@ -93,16 +93,23 @@ class TagResponse(TagBase):
 
 class PostCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=255)
-    contents: str
-    attached: Optional[str] = None
-    tags: List[str] = [] # 생성 시 태그 이름 리스트를 받음
+    contents: str = Field(..., min_length=1)
+    tags: list[str] = Field(default_factory=list, description="태그 이름 리스트")
+    attached: str | None = Field(None, max_length=255, description="첨부파일 URL/경로")
+
+class PostUpdate(BaseModel):
+    title: str | None = Field(None, min_length=1, max_length=255)
+    contents: str | None = Field(None, min_length=1)
+    tags: list[str] | None = Field(None, description="보내면 태그 교체, 안 보내면 유지")
+    attached: str | None = Field(None, max_length=255, description="첨부파일 URL/경로")
+
 
 class PostResponse(BaseModel):
     post_id: int
     user_id: int
     title: str
     contents: str
-    attached: Optional[str]
+    attached: Optional[str] = None
     status: PostStatus
     cdate: datetime
     # ManyToMany 관계인 태그 목록을 포함
