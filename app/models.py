@@ -13,7 +13,6 @@ class USERS(models.Model):
 
 class POSTS(models.Model):
     post_id = fields.IntField(pk=True)
-    # 변수명을 user로 하면 사용하기 더 편합니다 (post.user.user_email 가능)
     user = fields.ForeignKeyField(
         "models.USERS", related_name="posts", db_constraint=True, source_field="user_id"
     )
@@ -24,7 +23,6 @@ class POSTS(models.Model):
     deleted_date = fields.DatetimeField(null=True)
     cdate = fields.DatetimeField(auto_now_add=True)
 
-    # models. 을 붙여주는 것이 더 안전합니다.
     tags = fields.ManyToManyField(
         "models.TAGS", related_name="posts", through="POST_TAGS"
     )
@@ -57,7 +55,6 @@ class BOOKMARKS(models.Model):
     cdate = fields.DatetimeField(auto_now_add=True)
 
     class Meta:
-        # 변수명인 user와 quote를 적어줍니다.
         unique_together = ("user", "quote")
 
 class TOKEN_BLACKLIST(models.Model):
