@@ -18,6 +18,10 @@ dependencies = [
     "python-dotenv>=1.2.1",
     "sqlalchemy>=2.0.45",
     "python-jose>=3.5.0",
+    "dotenv>=0.9.9",
+    "pydantic-settings>=2.12.0",
+    "psycopg2-binary>=2.9.11",
+    "pg8000>=1.31.5",
 ]
 
 
