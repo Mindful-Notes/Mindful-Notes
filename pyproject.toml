@@ -1,4 +1,0 @@
-[dependency-groups]
-dev = [
-    "python-jose[cryptography]>=3.5.0",
-]
