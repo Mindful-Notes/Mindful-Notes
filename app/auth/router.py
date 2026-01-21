@@ -18,7 +18,9 @@ from models import User, TokenBlacklist
 from auth.schemas import UserCreate, Token, UserOut
 
 router = APIRouter(
-    prefix="/auth", tags=["인증"]
+    prefix="/auth",
+    tags=["인증"],
+)
 
 # 회원가입
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
