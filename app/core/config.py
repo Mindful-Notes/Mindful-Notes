@@ -1,20 +1,26 @@
 # .env 관리
 # tortois
 import os
-from dotenv import load_dotenv
+from pydantic import SecretStr, BaseModel, Field, EmailStr
+from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-from datetime import datetime
-from typing import List, Optional
-from pydantic import BaseModel, Field, EmailStr
 from enum import Enum
+from typing import Optional, List
+from datetime import datetime
+
+env_path = ".env"
 
 """시스템 환경 설정"""
 class Settings(BaseSettings):
-    SECRET_KEY: str
+    SECRET_KEY: SecretStr
     ALGORITHMS: str = "HS256"
-    DATABASE_URL: str
-    # model_config: SettingsConfigDict(env_file = "")      # .env파일 위치
+    DATABASE_URL: SecretStr
+    model_config = SettingsConfigDict(
+        env_file=env_path,
+        env_file_encoding='utf-8',
+        extra='ignore', # .env에 클래스 변수 외에 다른게 있어도 무시
+        case_sensitive=False
+    )
 
 settings = Settings()
 
@@ -35,6 +41,25 @@ TORTOISE_ORM = {
 class PostStatus(str, Enum):
     PUBLIC = "public"
     DELETED = "deleted"
+
+
+# 회원가입 / 로그인 시 받는 데이터 (Input)
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str
+
+# 로그인 성공 시 반환하는 토큰 형식 (Output)
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+# API 응답으로 유저 정보 보여줄 때 (Output)
+class UserOut(BaseModel):
+    user_id: int
+    email: EmailStr = Field(validation_alias="user_email")
+
+    class Config:
+        from_attributes = True          # SQLAlchemy 객체를 자동으로 읽어오게 함.
 
 """유저 스키마"""
 class UserBase(BaseModel):
@@ -93,20 +118,27 @@ class TagResponse(TagBase):
 
 class PostCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=255)
-    contents: str
-    attached: Optional[str] = None
-    tags: List[str] = [] # 생성 시 태그 이름 리스트를 받음
+    contents: str = Field(..., min_length=1)
+    tags: list[str] = Field(default_factory=list, description="태그 이름 리스트")
+    attached: str | None = Field(None, max_length=255, description="첨부파일 URL/경로")
+
+class PostUpdate(BaseModel):
+    title: str | None = Field(None, min_length=1, max_length=255)
+    contents: str | None = Field(None, min_length=1)
+    tags: list[str] | None = Field(None, description="보내면 태그 교체, 안 보내면 유지")
+    attached: str | None = Field(None, max_length=255, description="첨부파일 URL/경로")
+
 
 class PostResponse(BaseModel):
     post_id: int
     user_id: int
     title: str
     contents: str
-    attached: Optional[str]
+    attached: Optional[str] = None
     status: PostStatus
     cdate: datetime
     # ManyToMany 관계인 태그 목록을 포함
-    tags: List[TagResponse] = []
+    tags: list[str] = []
 
     class Config:
         from_attributes = True
