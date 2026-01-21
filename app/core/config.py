@@ -3,10 +3,10 @@ import os
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-current_file_path = os.path.abspath(__file__)
-root_dir = os.path.dirname(os.path.dirname(os.path.dirname(current_file_path)))
-env_path = os.path.join(root_dir, ".env")
+# .env 파일의 내용을 환경 변수로 불러옵니다.
+load_dotenv()
 
+"""시스템 환경 설정"""
 class Settings(BaseSettings):
     SECRET_KEY: SecretStr
     ALGORITHMS: str = "HS256"
@@ -20,13 +20,10 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-
-# 환경 변수에서 DATABASE_URL을 가져오고, 없으면 기본값을 사용하거나 에러를 냅니다.
-database_url = os.getenv("DATABASE_URL")
-
+"""db 연결 설정"""
 TORTOISE_ORM = {
     "connections": {
-        "default": database_url
+        "default": settings.DATABASE_URL
     },
     "apps": {
         "models": {
@@ -36,11 +33,3 @@ TORTOISE_ORM = {
     },
 }
 
-# test
-# if __name__ == "__main__":
-#     try:
-#         print(f"✅ 프로젝트 루트: {root_dir}")
-#         print(f"✅ 설정파일 경로: {env_path}")
-#         print(f"✅ 불러온 SECRET_KEY: {settings.SECRET_KEY}")
-#     except Exception as e:
-#         print(f"❌ 설정 로드 실패: {e}")
