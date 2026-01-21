@@ -18,7 +18,8 @@ from ..models import USERS, TOKEN_BLACKLIST
 from app.auth.schemas import UserCreate, Token, UserOut
 
 router = APIRouter(
-    prefix="/auth", tags=["인증"]
+    prefix="/auth",
+    tags=["인증"],
 )
 
 # 회원가입
