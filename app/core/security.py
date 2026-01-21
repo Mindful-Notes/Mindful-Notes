@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 # 암호화
 from jose import jwt, JWTError
+from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from core.config import settings        # 환경변수 설정값 secret key 등
 from core.database import get_db
@@ -21,6 +22,7 @@ def create_access_token(user_id:int) -> str:
         "exp": datetime.now() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     }
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=ALGORITHM)
+# TODO:settings 에 시크릿키
 
 # 헤더에서 Bearer 토큰 찾아 추출
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
@@ -61,4 +63,16 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 
     # 전부 통과하면 user 객체 반환
     return user
+
+
+# 비밀번호 해싱을 위한 설정 (bcrypt 알고리즘 사용)
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# 비밀번호 해시 함수
+def get_password_hash(password: str) -> str:
+    return pwd_context.hash(password)
+
+# Hasf 전 비밀번호화 Hash된 비밀번호 비교
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
 

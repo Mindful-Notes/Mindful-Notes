@@ -2,7 +2,7 @@
 # tortois
 import os
 from dotenv import load_dotenv
-from pydantic_settings import BaseSettings, SettingConfigDict
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # .env 파일의 내용을 환경 변수로 불러옵니다.
 load_dotenv()
@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ALGORITHMS: str = "HS256"
     DATABASE_URL: str
-    model_config: SettingConfigDict(env_file = "")      # .env파일 위치
+    # model_config: SettingsConfigDict(env_file = "")      # .env파일 위치
 
 settings = Settings()
 
