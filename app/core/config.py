@@ -1,11 +1,17 @@
 # .env 관리
 # tortois
 import os
-from pydantic import SecretStr
+from pydantic import SecretStr, BaseModel, Field, EmailStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from dotenv import load_dotenv
+from enum import Enum
+from typing import Optional, List
+from datetime import datetime
+
+env_path = ".env"
 
 # .env 파일의 내용을 환경 변수로 불러옵니다.
-load_dotenv()
+load_dotenv(dotenv_path=env_path)
 
 """시스템 환경 설정"""
 class Settings(BaseSettings):

@@ -1,13 +1,12 @@
+# -*- coding: utf-8 -*-
 from pydoc import describe
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
 from datetime import datetime
 
-from app.core.database import get_db
 from jose import jwt
-from app.core.config import Settings
+from app.core.config import settings
 from app.core.security import (
     create_access_token,
     get_password_hash,
@@ -24,39 +23,36 @@ router = APIRouter(
 
 # 회원가입
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
-def register(user: UserCreate, db: Session = Depends(get_db)):
-    if db.query(USERS).filter(USERS.email == user.email).first():
+async def register(user: UserCreate):
+    if await USERS.filter(user_email=user.email).exists():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="이미 존재하는 이메일입니다.")
 
-    new_user = USERS(
-        email=user.email,
-        hashed_password = get_password_hash(user.password)
+    new_user = await USERS.create(
+        user_email=user.email,
+        hashed_pass = get_password_hash(user.password)
     )
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
     return new_user
 
 # 로그인, 토큰발급)
 @router.post("/login", response_model=Token, status_code=status.HTTP_200_OK)
-def login(form_data: OAuth2PasswordRequestForm = Depends(OAuth2PasswordRequestForm), db: Session = Depends(get_db)):
+async def login(form_data: OAuth2PasswordRequestForm = Depends(OAuth2PasswordRequestForm)):
     # OAuth2PasswordRequestForm 형태는 JSON 아니라 Form, Depends(생략가능)
-    user = db.query(USERS).filter(USERS.email == form_data.username).first()
-    if not user or not verify_password(form_data.password, user.hashed_password):
+    user = await USERS.filter(user_email=form_data.username).first()
+    if not user or not verify_password(form_data.password, user.hashed_pass):
         raise HTTPException(status_code=401, detail = "로그인 정보가 정확하지 않습니다.")
 
-    access_token = create_access_token(user_id = user.user_id, fresh = True)
+    access_token = create_access_token(user_id = user.user_id)
     return {"access_token": access_token, "token_type": "bearer"}
 
 # 로그아웃, 토큰 블랙리스트 등록
 @router.get("/logout")
-def logout(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+async def logout(token: str = Depends(oauth2_scheme)):
     try:
         # 클라이언트가 보낸 토큰을 SECRET_KEY로 복호화
         payload = jwt.decode(
             token,
-            Settings.SECRET_KEY
-            , algorithms= [Settings.ALGORITHMS]
+            settings.SECRET_KEY.get_secret_value()
+            , algorithms= [settings.ALGORITHMS]
         )
 
         token_exp = payload.get("exp")
@@ -66,12 +62,10 @@ def logout(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
         exp_datetime = datetime.fromtimestamp(token_exp)
 
         # 블랙리스트 테이블에 등록
-        blacklisted_token = TOKEN_BLACKLIST(
+        await TOKEN_BLACKLIST.create(
             token = token,
             expires_at = exp_datetime
         )
-        db.add(blacklisted_token)
-        db.commit()
 
     except jwt.ExpiredSignatureError:
         return {"message": "이미 만료된 토큰입니다."}

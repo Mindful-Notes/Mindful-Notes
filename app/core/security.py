@@ -1,8 +1,7 @@
+# -*- coding: utf-8 -*-
 # fastapi
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.orm import Session
-from app.core.database import get_db
 from pydantic import BaseModel
 
 import sys
@@ -17,7 +16,6 @@ from jose import jwt, JWTError
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from app.core.config import settings        # 환경변수 설정값 secret key 등
-from app.core.database import get_db
 from starlette import status
 
 
@@ -37,7 +35,7 @@ ALGORITHM = "HS256"
 SECRET_KEY = settings.SECRET_KEY.get_secret_value()
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+async def get_current_user(token: str = Depends(oauth2_scheme)):
     # 포괄적인 에러 정의
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -45,7 +43,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         headers={"WWW-Authenticate": "Bearer"},
     )
     # 블랙리스트 확인 (보안 강화)
-    blacklisted = db.query(TOKEN_BLACKLIST).filter(TOKEN_BLACKLIST.token == token).first()
+    blacklisted = await TOKEN_BLACKLIST.filter(token=token).exists()
     if blacklisted:
         raise credentials_exception
     try:
@@ -61,7 +59,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         raise credentials_exception
 
     # DB에서 유저 확인
-    user = db.query(User).filter(User.id == int(user_id)).first()
+    user = await USERS.filter(user_id=int(user_id)).first()
 
     if user is None:
         raise credentials_exception

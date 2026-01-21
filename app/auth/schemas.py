@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 
 # 회원가입 / 로그인 시 받는 데이터 (Input)
@@ -14,7 +14,7 @@ class Token(BaseModel):
 # API 응답으로 유저 정보 보여줄 때 (Output)
 class UserOut(BaseModel):
     user_id: int
-    email: EmailStr
+    email: EmailStr = Field(validation_alias="user_email")
 
     class Config:
         from_attributes = True          # SQLAlchemy 객체를 자동으로 읽어오게 함.
