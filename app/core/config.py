@@ -1,3 +1,7 @@
+# .env 관리
+# tortois
+import os
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from datetime import datetime
@@ -10,7 +14,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ALGORITHMS: str = "HS256"
     DATABASE_URL: str
-    model_config = SettingsConfigDict(env_file=".env")
+    # model_config: SettingsConfigDict(env_file = "")      # .env파일 위치
 
 settings = Settings()
 
