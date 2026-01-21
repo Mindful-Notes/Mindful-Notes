@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ALGORITHMS: str = "HS256"
     DATABASE_URL: str
-    model_config: SettingsConfigDict(env_file = "")      # .env파일 위치
+    # model_config: SettingsConfigDict(env_file = "")      # .env파일 위치
 
 settings = Settings()
 
