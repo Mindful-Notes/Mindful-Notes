@@ -20,7 +20,7 @@ def create_access_token(user_id:int) -> str:
         "sub": str(user_id),            # JWT의 표준(sub)은 문자열
         "exp": datetime.now() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     }
-    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=ALGORITHM)
 
 # 헤더에서 Bearer 토큰 찾아 추출
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
