@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, Query, status
 
-from app.core.config import PostCreate, PostUpdate, PostResponse
+from app.core.config import PostCreate, PostResponse, PostUpdate
 from app.diary import service
 from app.diary.deps import get_me
 

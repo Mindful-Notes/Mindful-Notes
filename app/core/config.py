@@ -46,6 +46,9 @@ class PostStatus(str, Enum):
     PUBLIC = "public"
     DELETED = "deleted"
 
+class StatusUpdate(BaseModel):
+    is_active: bool
+
 
 # 회원가입 / 로그인 시 받는 데이터 (Input)
 class UserCreate(BaseModel):
