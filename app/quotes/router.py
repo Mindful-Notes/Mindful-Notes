@@ -13,12 +13,13 @@ from app.core.config import (
 from app.core.security import get_current_user
 from app.models import BOOKMARKS, QUOTES, REFLECTION_QUESTIONS
 
-router = APIRouter()
+router = APIRouter(tags=["Quotes & Questions"])
 
 @router.get("/quotes", response_model=List[QuoteResponse])
 async def get_active_quotes():
-    """활성화된 모든 명언"""
-    return await QuoteResponse.from_queryset(QUOTES.filter(is_active=True))
+    """활성화된 모든 명언리스트(메모리문제로 50개 제한)"""
+    quotes = await QUOTES.filter(is_active=True).order_by("quote_id").limit(50)
+    return [QuoteResponse.model_validate(quote) for quote in quotes]
 
 @router.get("/quotes/random", response_model=QuoteResponse)
 async def get_random_quote():
@@ -34,7 +35,7 @@ async def get_random_quote():
 @router.patch("/quotes/{quote_id}/status", response_model=QuoteResponse)
 async def update_quote_status(quote_id: int, status: StatusUpdate):
     """명언 활성화/비활성화 전환"""
-    quote = await QUOTES.filter(id=quote_id).first()
+    quote = await QUOTES.filter(quote_id=quote_id).first()
     if not quote:
         raise HTTPException(status_code=404, detail="명언을 찾을 수 없습니다.")
 
@@ -45,10 +46,9 @@ async def update_quote_status(quote_id: int, status: StatusUpdate):
 
 @router.get("/questions", response_model=List[QuestionResponse])
 async def get_active_questions():
-    """활성화된 오늘의 질문 리스트"""
-    return await QuestionResponse.from_queryset(
-        REFLECTION_QUESTIONS.filter(is_active=True)
-    )
+    """활성화된 오늘의 질문 리스트(메모리문제로 50개 제한)"""
+    questions = await REFLECTION_QUESTIONS.filter(is_active=True).order_by("question_id").limit(50)
+    return [QuestionResponse.model_validate(q) for q in questions]
 
 @router.get("/questions/random", response_model=QuestionResponse)
 async def get_random_question():
@@ -69,7 +69,7 @@ async def get_random_question():
 @router.patch("/questions/{question_id}/status", response_model=QuestionResponse)
 async def update_question_status(question_id: int, status: StatusUpdate):
     """오늘의 질문 활성화/비활성화 전환"""
-    question = await REFLECTION_QUESTIONS.filter(id=question_id).first()
+    question = await REFLECTION_QUESTIONS.filter(question_id=question_id).first()
     if not question:
         raise HTTPException(status_code=404, detail="질문을 찾을 수 없습니다.")
 
@@ -78,6 +78,18 @@ async def update_question_status(question_id: int, status: StatusUpdate):
     return question
 
 
+@router.get("/bookmarks", response_model=List[BookmarkResponse])
+async def get_my_bookmarks(current_user=Depends(get_current_user)):
+    """현재 로그인한 사용자의 북마크 리스트 조회"""
+    bookmarks = (
+        await BOOKMARKS.filter(user_id=current_user.user_id)
+        .order_by("-bookmark_id")
+        .limit(50)
+        .prefetch_related("quote")
+    )
+
+    return [BookmarkResponse.model_validate(b) for b in bookmarks]
+
 @router.post("/bookmarks", response_model=BookmarkResponse)
 async def add_bookmark(
     bookmark_in: BookmarkCreate,
@@ -85,16 +97,23 @@ async def add_bookmark(
 ):
     """북마크 추가"""
     exists = await BOOKMARKS.filter(
-        user_id=current_user.user_id, quote_id=bookmark_in.quote_id
+        user_id=current_user.user_id,
+        quote_id=bookmark_in.quote_id
     ).exists()
 
     if exists:
         raise HTTPException(status_code=400, detail="이미 북마크했습니다.")
 
     new_bookmark = await BOOKMARKS.create(
-        user_id=current_user.user_id, quote_id=bookmark_in.quote_id
+        user_id=current_user.user_id,
+        quote_id=bookmark_in.quote_id
     )
-    return new_bookmark
+
+    bookmark_full = await BOOKMARKS.filter(bookmark_id=new_bookmark.bookmark_id) \
+                                   .prefetch_related("quote") \
+                                   .first()
+
+    return BookmarkResponse.model_validate(bookmark_full)
 
 
 @router.delete("/bookmarks/{quote_id}")
