@@ -2,6 +2,7 @@
 # tortois
 import os
 from pydantic import SecretStr, BaseModel, Field, EmailStr
+from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from enum import Enum
 from typing import Optional, List
@@ -41,8 +42,6 @@ class PostStatus(str, Enum):
     PUBLIC = "public"
     DELETED = "deleted"
 
-from pydantic import BaseModel, EmailStr, Field
-from typing import Optional
 
 # 회원가입 / 로그인 시 받는 데이터 (Input)
 class UserCreate(BaseModel):
