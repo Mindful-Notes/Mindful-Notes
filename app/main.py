@@ -7,7 +7,12 @@ from app.quotes.router import router as quotes_router
 from app.tags.router import router as tags_router
 from app.core.config import settings
 
-app = FastAPI()
+app = FastAPI(
+    title="Mindful Notes",
+    swagger_ui_parameters={
+        "persistAuthorization": True,
+    }
+)
 
 app.include_router(auth_router)
 app.include_router(diary_router)

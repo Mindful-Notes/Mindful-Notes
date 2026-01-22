@@ -1,75 +1,121 @@
 # -*- coding: utf-8 -*-
-from pydoc import describe
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
 from datetime import datetime
 
+from fastapi import APIRouter, Depends, HTTPException, status
 from jose import jwt
-from app.core.config import settings
+
+from app.core.config import Token, UserCreate, UserOut, settings
 from app.core.security import (
     create_access_token,
     get_password_hash,
     verify_password,
-    oauth2_scheme
+    # oauth2_scheme
+    HTTPAuthorizationCredentials,
+    http_schema
 )
-from ..models import USERS, TOKEN_BLACKLIST
-from app.core.config import UserCreate, Token, UserOut
+
+from ..models import TOKEN_BLACKLIST, USERS
 
 router = APIRouter(
     prefix="/auth",
     tags=["인증"],
 )
 
+
 # 회원가입
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 async def register(user: UserCreate):
     if await USERS.filter(user_email=user.email).exists():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="이미 존재하는 이메일입니다.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="이미 존재하는 이메일입니다.",
+        )
 
     new_user = await USERS.create(
-        user_email=user.email,
-        hashed_pass = get_password_hash(user.password)
+        user_email=user.email, hashed_pass=get_password_hash(user.password)
     )
     return new_user
 
-# 로그인, 토큰발급)
-@router.post("/login", response_model=Token, status_code=status.HTTP_200_OK)
-async def login(form_data: OAuth2PasswordRequestForm = Depends(OAuth2PasswordRequestForm)):
-    # OAuth2PasswordRequestForm 형태는 JSON 아니라 Form, Depends(생략가능)
-    user = await USERS.filter(user_email=form_data.username).first()
-    if not user or not verify_password(form_data.password, user.hashed_pass):
-        raise HTTPException(status_code=401, detail = "로그인 정보가 정확하지 않습니다.")
 
-    access_token = create_access_token(user_id = user.user_id)
+# 로그인, 토큰발급)
+# @router.post("/login", response_model=Token, status_code=status.HTTP_200_OK)
+# async def login(form_data: OAuth2PasswordRequestForm = Depends(OAuth2PasswordRequestForm)):
+#     # OAuth2PasswordRequestForm 형태는 JSON 아니라 Form, Depends(생략가능)
+#     user = await USERS.filter(user_email=form_data.username).first()
+#     if not user or not verify_password(form_data.password, user.hashed_pass):
+#         raise HTTPException(status_code=401, detail = "로그인 정보가 정확하지 않습니다.")
+#
+#     access_token = create_access_token(user_id = user.user_id)
+#     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.post("/login", response_model=Token)
+async def login(data: UserCreate):
+    user = await USERS.filter(user_email=data.email).first()
+
+    if not user or not verify_password(data.password, user.hashed_pass):
+        raise HTTPException(status_code=401, detail="로그인 정보가 정확하지 않습니다.")
+
+    access_token = create_access_token(user_id=user.user_id)
     return {"access_token": access_token, "token_type": "bearer"}
 
+
 # 로그아웃, 토큰 블랙리스트 등록
+# @router.get("/logout")
+# async def logout(token: str = Depends(oauth2_scheme)):
+#     try:
+#         # 클라이언트가 보낸 토큰을 SECRET_KEY로 복호화
+#         payload = jwt.decode(
+#             token,
+#             settings.SECRET_KEY.get_secret_value()
+#             , algorithms= [settings.ALGORITHMS]
+#         )
+#
+#         token_exp = payload.get("exp")
+#         if token_exp is None:
+#             raise HTTPException(status_code=400, detail="유효하지 않은 토큰")
+#         # payload에서 exp(숫자) -> 파이썬 datetime 객체로 바꿈.
+#         exp_datetime = datetime.fromtimestamp(token_exp)
+#
+#         # 블랙리스트 테이블에 등록
+#         await TOKEN_BLACKLIST.create(
+#             token = token,
+#             expires_at = exp_datetime
+#         )
+#
+#     except jwt.ExpiredSignatureError:
+#         return {"message": "이미 만료된 토큰입니다."}
+#     except jwt.JWTError:
+#         raise HTTPException(status_code=401, detail="Invalid credentials")
+#
+#     return {"message": "성공적으로 로그아웃되었습니다."}
+
+
 @router.get("/logout")
-async def logout(token: str = Depends(oauth2_scheme)):
+async def logout(auth: HTTPAuthorizationCredentials = Depends(http_schema)):
+    token = auth.credentials
+
     try:
-        # 클라이언트가 보낸 토큰을 SECRET_KEY로 복호화
         payload = jwt.decode(
             token,
-            settings.SECRET_KEY.get_secret_value()
-            , algorithms= [settings.ALGORITHMS]
+            settings.SECRET_KEY.get_secret_value(),
+            algorithms=[settings.ALGORITHMS],
         )
 
         token_exp = payload.get("exp")
         if token_exp is None:
             raise HTTPException(status_code=400, detail="유효하지 않은 토큰")
-        # payload에서 exp(숫자) -> 파이썬 datetime 객체로 바꿈.
+
+        # exp(timestamp) -> 파이썬 datetime 객체로 변환
         exp_datetime = datetime.fromtimestamp(token_exp)
 
         # 블랙리스트 테이블에 등록
-        await TOKEN_BLACKLIST.create(
-            token = token,
-            expires_at = exp_datetime
-        )
+        await TOKEN_BLACKLIST.create(token=token, expires_at=exp_datetime)
 
     except jwt.ExpiredSignatureError:
         return {"message": "이미 만료된 토큰입니다."}
     except jwt.JWTError:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(status_code=401, detail="인증 정보가 올바르지 않습니다.")
 
     return {"message": "성공적으로 로그아웃되었습니다."}
