@@ -1,5 +1,7 @@
 from enum import Enum
+
 from tortoise import fields, models
+
 
 class PostStatus(str, Enum):
     PUBLIC = "public"
