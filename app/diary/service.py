@@ -2,7 +2,6 @@
 # 검색/정렬 등 복잡한 로직
 
 from datetime import datetime, timedelta, timezone
-
 from fastapi import HTTPException, status
 
 from app.models import POSTS, TAGS, PostStatus  # 너희 Tortoise 모델 별칭/경로 유지
@@ -33,14 +32,18 @@ async def create_diary(
     return await POSTS.filter(post_id=post.post_id).prefetch_related("tags").first()
 
 
-async def get_diary(post_id: int):
+async def get_diary(post_id: int, user_id: int):
     post = await POSTS.filter(
         post_id=post_id,
-        status=PostStatus.PUBLIC,  # 공개 글만 조회
+        status=PostStatus.PUBLIC,
     ).prefetch_related("tags").first()
 
     if not post:
         raise HTTPException(status_code=404, detail="일기를 찾을 수 없습니다.")
+
+    if post.user_id != user_id:
+        raise HTTPException(status_code=403, detail="본인 글만 조회할 수 있습니다.")
+
     return post
 
 
