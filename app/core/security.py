@@ -1,18 +1,22 @@
+# -*- coding: utf-8 -*-
 # fastapi
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.orm import Session
-from core.database import get_db
 from pydantic import BaseModel
 
+import sys
+from pathlib import Path
+root_path = str(Path(__file__).parent.parent.parent)
+if root_path not in sys.path:
+    sys.path.append(root_path)
+
 # 암호화
+from ..models import TOKEN_BLACKLIST, USERS
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
-from core.config import settings        # 환경변수 설정값 secret key 등
-from core.database import get_db
+from app.core.config import settings        # 환경변수 설정값 secret key 등
 from starlette import status
-import models
 
 
 
@@ -21,18 +25,17 @@ def create_access_token(user_id:int) -> str:
         "sub": str(user_id),            # JWT의 표준(sub)은 문자열
         "exp": datetime.now() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     }
-    return jwt.encode(payload, settings.SECRET_KEY, algorithm=ALGORITHM)
-# TODO:settings 에 시크릿키
+    return jwt.encode(payload, settings.SECRET_KEY.get_secret_value(), algorithm=ALGORITHM)
 
 # 헤더에서 Bearer 토큰 찾아 추출
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 # Access Token ( JWT 형태)
 ALGORITHM = "HS256"
-SECRET_KEY = "MysteriousSecretKey"      # 환경변수로 !!
+SECRET_KEY = settings.SECRET_KEY.get_secret_value()
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+async def get_current_user(token: str = Depends(oauth2_scheme)):
     # 포괄적인 에러 정의
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -40,7 +43,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         headers={"WWW-Authenticate": "Bearer"},
     )
     # 블랙리스트 확인 (보안 강화)
-    blacklisted = db.query(TokenBlacklist).filter(TokenBlacklist.token == token).first()
+    blacklisted = await TOKEN_BLACKLIST.filter(token=token).exists()
     if blacklisted:
         raise credentials_exception
     try:
@@ -56,7 +59,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         raise credentials_exception
 
     # DB에서 유저 확인
-    user = db.query(User).filter(User.id == int(user_id)).first()
+    user = await USERS.filter(user_id=int(user_id)).first()
 
     if user is None:
         raise credentials_exception
