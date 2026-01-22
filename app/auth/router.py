@@ -14,7 +14,7 @@ from app.core.security import (
     oauth2_scheme
 )
 from ..models import USERS, TOKEN_BLACKLIST
-from app.auth.schemas import UserCreate, Token, UserOut
+from app.core.config import UserCreate, Token, UserOut
 
 router = APIRouter(
     prefix="/auth",

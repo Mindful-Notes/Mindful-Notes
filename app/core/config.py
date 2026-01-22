@@ -3,15 +3,11 @@
 import os
 from pydantic import SecretStr, BaseModel, Field, EmailStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from dotenv import load_dotenv
 from enum import Enum
 from typing import Optional, List
 from datetime import datetime
 
 env_path = ".env"
-
-# .env 파일의 내용을 환경 변수로 불러옵니다.
-load_dotenv(dotenv_path=env_path)
 
 """시스템 환경 설정"""
 class Settings(BaseSettings):
@@ -44,6 +40,27 @@ TORTOISE_ORM = {
 class PostStatus(str, Enum):
     PUBLIC = "public"
     DELETED = "deleted"
+
+from pydantic import BaseModel, EmailStr, Field
+from typing import Optional
+
+# 회원가입 / 로그인 시 받는 데이터 (Input)
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str
+
+# 로그인 성공 시 반환하는 토큰 형식 (Output)
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+# API 응답으로 유저 정보 보여줄 때 (Output)
+class UserOut(BaseModel):
+    user_id: int
+    email: EmailStr = Field(validation_alias="user_email")
+
+    class Config:
+        from_attributes = True          # SQLAlchemy 객체를 자동으로 읽어오게 함.
 
 """유저 스키마"""
 class UserBase(BaseModel):
