@@ -31,9 +31,6 @@ async def register(user: UserCreate):
         user_email=user.email,
         hashed_pass = get_password_hash(user.password)
     )
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
     return new_user
 
 # 로그인, 토큰발급)
