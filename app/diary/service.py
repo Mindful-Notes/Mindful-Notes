@@ -8,8 +8,10 @@ from app.models import POSTS, TAGS, POST_TAGS, PostStatus
 # 삭제 보관 기간 = 3일
 RESTORE_WINDOW_DAYS = 3
 
+from app.models import POSTS, TAGS, POST_TAGS, PostStatus  # POST_TAGS 임포트 확인
+
+
 async def create_diary(user_id: int, payload: PostCreate):
-    """일기 생성 및 태그 연결 (트랜잭션 보장)"""
     async with transactions.in_transaction():
         post = await POSTS.create(
             user_id=user_id,
@@ -19,9 +21,12 @@ async def create_diary(user_id: int, payload: PostCreate):
 
         if payload.tags:
             tag_objs = await get_or_create_tags(payload.tags)
-            await post.tags.add(*tag_objs)
+            new_rels = [
+                POST_TAGS(post_id=post.post_id, tag_id=t.tag_id) for t in tag_objs
+            ]
+            await POST_TAGS.bulk_create(new_rels)
 
-    return await POSTS.filter(post_id=post.post_id).prefetch_related("tags").first()
+    return await POSTS.filter(post_id=post.post_id).first()
 
 
 async def get_diary(post_id: int, user_id: int):

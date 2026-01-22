@@ -2,18 +2,22 @@ from fastapi import APIRouter, Depends, Query, status
 from app.core.config import PostCreate, PostResponse, PostUpdate
 from app.diary import service
 from app.diary.deps import get_me
+from app.models import TAGS, POST_TAGS
 
 router = APIRouter(prefix="/diaries", tags=["Diary"])
 
 async def to_out(post) -> PostResponse:
-    """Tortoise M2M 객체를 Pydantic Response 모델로 변환"""
-    tag_names: list[str] = []
-    if hasattr(post, "tags"):
-        try:
-            tags = await post.tags.all()
-            tag_names = [t.name for t in tags]
-        except Exception:
-            tag_names = [t.name for t in post.tags]
+    """Tortoise M2M 객체를 Pydantic Response 모델로 변환 (중간 테이블 직접 조회 방식)"""
+
+    rels = await POST_TAGS.filter(post_id=post.post_id).all()
+    tag_ids = [r.tag_id for r in rels]
+
+    tag_names = []
+    if tag_ids:
+        tags = await TAGS.filter(tag_id__in=tag_ids).all()
+        tag_names = [t.name for t in tags]
+
+    # print(f"--- DEBUG: POST_ID {post.post_id} -> RELS_FOUND: {len(rels)} -> TAGS: {tag_names} ---")
 
     return PostResponse(
         post_id=post.post_id,
@@ -25,7 +29,6 @@ async def to_out(post) -> PostResponse:
         status=post.status,
         cdate=post.cdate,
     )
-
 @router.post("", response_model=PostResponse, status_code=status.HTTP_201_CREATED)
 async def create_diary_api(payload: PostCreate, me=Depends(get_me)):
     post = await service.create_diary(me.user_id, payload)
