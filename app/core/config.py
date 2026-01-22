@@ -1,14 +1,9 @@
-# .env 관리
-# tortois
-import os
 from pathlib import Path
 from pydantic import SecretStr, BaseModel, Field, EmailStr
-from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from datetime import datetime
-from typing import List, Optional
-from pydantic import BaseModel, Field, EmailStr
+from typing import Optional
 from enum import Enum
 
 BASE_DIR = Path(__file__).parent.parent.parent
@@ -155,6 +150,8 @@ class BookmarkResponse(BaseModel):
     user_id: int
     quote_id: int
     cdate: datetime
+
+    quote: QuoteResponse
 
     class Config:
         from_attributes = True
