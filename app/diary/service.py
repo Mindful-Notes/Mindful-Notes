@@ -1,38 +1,31 @@
-# "실제 로직(저장/조회/수정/삭제)"
-# 검색/정렬 등 복잡한 로직
-
 from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException, status
+from tortoise import transactions
 
-from app.models import POSTS, TAGS, PostStatus  # 너희 Tortoise 모델 별칭/경로 유지
+from app.core.config import PostCreate, PostUpdate
+from app.models import POSTS, TAGS, POST_TAGS, PostStatus
 
 # 삭제 보관 기간 = 3일
 RESTORE_WINDOW_DAYS = 3
 
+async def create_diary(user_id: int, payload: PostCreate):
+    """일기 생성 및 태그 연결 (트랜잭션 보장)"""
+    async with transactions.in_transaction():
+        post = await POSTS.create(
+            user_id=user_id,
+            **payload.model_dump(exclude={"tags"}),
+            status=PostStatus.PUBLIC,
+        )
 
-async def create_diary(
-    user_id: int,
-    title: str,
-    contents: str,
-    tags: list[str],
-    attached: str | None,
-):
-    post = await POSTS.create(
-        user_id=user_id,
-        title=title,
-        contents=contents,
-        attached=attached,
-        status=PostStatus.PUBLIC,
-    )
+        if payload.tags:
+            tag_objs = await get_or_create_tags(payload.tags)
+            await post.tags.add(*tag_objs)
 
-    if tags:
-        await set_post_tags(post, tags)
-
-    # tags 포함해서 반환위해 prefetch로 다시 가져오기
     return await POSTS.filter(post_id=post.post_id).prefetch_related("tags").first()
 
 
 async def get_diary(post_id: int, user_id: int):
+    """특정 일기 상세 조회"""
     post = await POSTS.filter(
         post_id=post_id,
         status=PostStatus.PUBLIC,
@@ -55,19 +48,19 @@ async def list_diaries(
     skip: int,
     limit: int,
 ):
+    """일기 목록 조회 (검색 및 정렬)"""
     qs = POSTS.filter(
         user_id=user_id,
         status=PostStatus.PUBLIC,
     )
 
-    # 제목/내용 검색을 원하면 title__contains OR contents__contains로 확장 가능
     if q:
-        qs = qs.filter(title__contains=q)
+        qs = qs.filter(title__icontains=q)
 
-    # 태그 필터링 (ManyToMany)
     if tag:
         qs = qs.filter(tags__name=tag)
 
+    # 정렬 처리 (모델의 cdate 필드 기준)
     if sort == "latest":
         qs = qs.order_by("-cdate")
     elif sort == "oldest":
@@ -78,117 +71,79 @@ async def list_diaries(
     return await qs.prefetch_related("tags").offset(skip).limit(limit).all()
 
 
-async def update_diary(
-    post_id: int,
-    user_id: int,
-    title: str | None,
-    contents: str | None,
-    tags: list[str] | None,
-    attached: str | None,
-):
+async def update_diary(post_id: int, user_id: int, payload: PostUpdate):
     post = await POSTS.filter(
-        post_id=post_id,
-        status=PostStatus.PUBLIC,
-    ).prefetch_related("tags").first()
-
+        post_id=post_id, user=user_id, status=PostStatus.PUBLIC
+    ).first()
     if not post:
         raise HTTPException(status_code=404, detail="일기를 찾을 수 없습니다.")
 
-    if post.user_id != user_id:
-        raise HTTPException(status_code=403, detail="본인 글만 수정할 수 있습니다.")
+    async with transactions.in_transaction():
+        update_data = payload.model_dump(exclude_unset=True, exclude={"tags"})
+        if update_data:
+            for key, value in update_data.items():
+                setattr(post, key, value)
+            await post.save()
 
-    if title is not None:
-        post.title = title
-    if contents is not None:
-        post.contents = contents
+        if payload.tags is not None:
+            await POST_TAGS.filter(post_id=post_id).delete()
 
-    # attached를 None으로 "삭제"까지 지원하려면,
-    # 라우터에서 payload에 attached가 포함됐는지 여부를 함께 넘겨야 함.
-    # 지금은 "None이면 유지, 문자열이면 수정" 규칙으로 간단 처리.
-    if attached is not None:
-        post.attached = attached
+            if payload.tags:
+                tag_objs = await get_or_create_tags(payload.tags)
 
-    await post.save()
-
-    # tags가 None이면 유지 / 리스트면 교체
-    if tags is not None:
-        await set_post_tags(post, tags)
+                new_rels = [
+                    POST_TAGS(post_id=post_id, tag_id=t.tag_id) for t in tag_objs
+                ]
+                await POST_TAGS.bulk_create(new_rels)
 
     return await POSTS.filter(post_id=post_id).prefetch_related("tags").first()
 
 
 async def get_or_create_tags(tag_names: list[str]):
-    cleaned: list[str] = []
-    for name in tag_names:
-        n = name.strip()
-        if n:
-            cleaned.append(n)
-
-    # 중복 제거(순서 유지)
-    cleaned = list(dict.fromkeys(cleaned))
+    """태그 문자열 리스트를 받아 TAGS 객체 리스트로 변환"""
+    cleaned = list(dict.fromkeys([n.strip() for n in tag_names if n.strip()]))
 
     tag_objs = []
     for name in cleaned:
-        tag = await TAGS.filter(name=name).first()
-        if not tag:
-            tag = await TAGS.create(name=name)
+        tag, _ = await TAGS.get_or_create(name=name)
         tag_objs.append(tag)
 
     return tag_objs
 
 
-async def set_post_tags(post, tag_names: list[str]):
-    tag_objs = await get_or_create_tags(tag_names)
-
-    await post.tags.clear()
-    if tag_objs:
-        await post.tags.add(*tag_objs)
-
-
 async def delete_diary(post_id: int, user_id: int):
+    """일기 삭제 (Soft Delete)"""
     post = await POSTS.filter(
         post_id=post_id,
+        user_id=user_id,
         status=PostStatus.PUBLIC,
     ).first()
 
     if not post:
         raise HTTPException(status_code=404, detail="일기를 찾을 수 없습니다.")
 
-    if post.user_id != user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="본인 글만 삭제할 수 있습니다.",
-        )
-
     post.status = PostStatus.DELETED
     post.deleted_date = datetime.now(timezone.utc)
     await post.save()
-
 
     return {"message": "삭제 완료 (soft delete)"}
 
 
 async def restore_diary(post_id: int, user_id: int):
+    """삭제된 일기 복구 (3일 이내만 가능)"""
     post = await POSTS.filter(
         post_id=post_id,
+        user_id=user_id,
         status=PostStatus.DELETED,
     ).first()
 
     if not post:
         raise HTTPException(status_code=404, detail="복구할 삭제 글이 없습니다.")
 
-    if post.user_id != user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="본인 글만 복구할 수 있습니다.",
-        )
-
-    if not post.deleted_date:
-        raise HTTPException(status_code=400, detail="deleted_date가 없어 복구할 수 없습니다.")
-
+    # 복구 가능 기간 체크
     deadline = datetime.now(timezone.utc) - timedelta(days=RESTORE_WINDOW_DAYS)
 
-    if post.deleted_date <= deadline:
+    if post.deleted_date and post.deleted_date <= deadline:
         raise HTTPException(status_code=400, detail="삭제 후 3일이 지나 복구할 수 없습니다.")
 
     post.status = PostStatus.PUBLIC
@@ -196,8 +151,3 @@ async def restore_diary(post_id: int, user_id: int):
     await post.save()
 
     return await POSTS.filter(post_id=post_id).prefetch_related("tags").first()
-
-
-
-## PUBLIC 필터 넣기완료
-## 내 글만 수정/삭제 권한 체크
