@@ -31,7 +31,7 @@ settings = Settings()
 """db 연결 설정"""
 TORTOISE_ORM = {
     "connections": {
-        "default": settings.DATABASE_URL
+        "default": settings.DATABASE_URL.get_secret_value()
     },
     "apps": {
         "models": {
@@ -141,7 +141,7 @@ class PostResponse(BaseModel):
     status: PostStatus
     cdate: datetime
     # ManyToMany 관계인 태그 목록을 포함
-    tags: List[TagResponse] = []
+    tags: list[str] = []
 
     class Config:
         from_attributes = True

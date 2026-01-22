@@ -23,7 +23,7 @@ class ContentScraper:
             return HTMLParser(response.text)
 
     # 1. 명언 스크래핑
-    async def sync_quotes(self, max_sets: int = 3):
+    async def sync_quotes(self, max_sets: int = 10):
         base_url = "https://saramro.com/quotes"
         total_count = 0
 
