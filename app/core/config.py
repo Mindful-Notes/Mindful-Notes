@@ -73,10 +73,6 @@ class UserBase(BaseModel):
     # 공통요소
     user_email: EmailStr
 
-class UserCreate(UserBase):
-    # 회원가입
-    password: str = Field(..., min_length=8)
-
 class UserResponse(UserBase):
     # 결과출력
     user_id: int
