@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+
 from app.models import TAGS
 
 router = APIRouter(prefix="/tags", tags=["Tags"])

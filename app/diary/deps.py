@@ -2,7 +2,9 @@
 # 역할: router에서 매번 반복할 것들 자동 주입. 로그인 유저 가져오기를 여기서 통일
 
 from fastapi import Depends
+
 from app.core.security import get_current_user
+
 
 async def get_me(user = Depends(get_current_user)):
     return user
