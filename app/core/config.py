@@ -1,14 +1,18 @@
 # .env 관리
 # tortois
 import os
+from pathlib import Path
 from pydantic import SecretStr, BaseModel, Field, EmailStr
 from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from enum import Enum
-from typing import Optional, List
-from datetime import datetime
 
-env_path = ".env"
+from datetime import datetime
+from typing import List, Optional
+from pydantic import BaseModel, Field, EmailStr
+from enum import Enum
+
+BASE_DIR = Path(__file__).parent.parent.parent
+env_path = BASE_DIR / ".env"
 
 """시스템 환경 설정"""
 class Settings(BaseSettings):
