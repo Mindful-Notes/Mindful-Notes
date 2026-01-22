@@ -26,22 +26,35 @@ class POSTS(models.Model):
     cdate = fields.DatetimeField(auto_now_add=True)
 
     tags = fields.ManyToManyField(
-        "models.TAGS", related_name="posts", through="POST_TAGS"
+        "models.TAGS",
+        related_name="posts",
+        through="POST_TAGS",
+        forward_key="post_id",
+        backward_key="tag_id",
     )
 
 class TAGS(models.Model):
     tag_id = fields.IntField(pk=True)
     name = fields.CharField(max_length=50, unique=True)
+    cdate = fields.DatetimeField(auto_now_add=True)
 
 class POST_TAGS(models.Model):
     id = fields.IntField(pk=True)
-    # 인덱스 추가됨
+
     post = fields.ForeignKeyField(
-        "models.POSTS", related_name="post_tag_rels", index=True, source_field="post_id"
+        "models.POSTS",
+        related_name="post_tag_rels",
+        index=True,
+        source_field="post_id",
     )
+
     tag = fields.ForeignKeyField(
-        "models.TAGS", related_name="tag_post_rels", source_field="tag_id"
+        "models.TAGS",
+        related_name="post_tag_rels",
+        index=True,
+        source_field="tag_id",
     )
+
 
     class Meta:
         table = "POST_TAGS"
