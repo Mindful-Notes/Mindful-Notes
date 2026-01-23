@@ -26,12 +26,22 @@ async def delete_old_posts():
         await post.delete()
     print(f"[{now}] Deleted {len(old_posts)} old posts.")
 
+# def setup_scheduler():
+#     """
+#     Sets up and starts the scheduler.
+#     """
+#     scheduler = AsyncIOScheduler(timezone="UTC")
+#     scheduler.add_job(delete_expired_tokens, CronTrigger(hour=0))  # Runs daily at midnight
+#     scheduler.add_job(delete_old_posts, CronTrigger(hour=1))  # Runs daily at 1 AM
+#     scheduler.start()
+#     print("Scheduler started.")
+#     return scheduler
 def setup_scheduler():
     """
     Sets up and starts the scheduler.
     """
     scheduler = AsyncIOScheduler(timezone="UTC")
-    scheduler.add_job(delete_expired_tokens, CronTrigger(hour=0))  # Runs daily at midnight
+    scheduler.add_job(delete_expired_tokens, CronTrigger(hour=6))  # Runs daily at midnight
     scheduler.add_job(delete_old_posts, CronTrigger(hour=1))  # Runs daily at 1 AM
     scheduler.start()
     print("Scheduler started.")
