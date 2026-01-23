@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 # fastapi
 from fastapi import FastAPI, Depends, HTTPException
-from fastapi.security import OAuth2PasswordBearer, HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+# from fastapi.security import OAuth2PasswordBearer
+# from pydantic import BaseModel
 
 import sys
 from pathlib import Path
@@ -103,7 +104,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
-# Hasf 전 비밀번호화 Hash된 비밀번호 비교
+# Hash 전 비밀번호화 Hash된 비밀번호 비교
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
