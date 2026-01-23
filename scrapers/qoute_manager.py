@@ -4,7 +4,7 @@ import httpx
 from pydantic import ValidationError
 from selectolax.parser import HTMLParser
 
-from app.core.config import QuestionCreate, QuoteCreate
+from app.core.config import QuoteCreate, QuestionCreate
 from app.core.database import close_db, init_db
 from app.models import QUOTES, REFLECTION_QUESTIONS
 
